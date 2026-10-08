@@ -7,15 +7,12 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.telecom.TelecomManager
 import android.telephony.TelephonyManager
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import me.lucky.silence.AllowNumber
 import me.lucky.silence.AllowNumberDao
 import me.lucky.silence.AppDatabase
 import me.lucky.silence.Message
 import me.lucky.silence.Preferences
-import java.util.concurrent.TimeUnit
 
 class NotificationListenerService : NotificationListenerService() {
     companion object {
@@ -58,7 +55,11 @@ class NotificationListenerService : NotificationListenerService() {
             try { db.insert(number) } catch (_: SQLiteConstraintException) { db.update(number) }
             hasNumber = true
         }
-        if (hasNumber) scheduleCleanup()
+        if (hasNumber) {
+            // the job is postponed by each new number, so drop expired ones here too
+            db.deleteExpired()
+            CleanupWorker.schedule(this, prefs.messagesTtl)
+        }
     }
 
     // a blocked or missed call shows its own number, which would allow the next call from it
@@ -74,11 +75,4 @@ class NotificationListenerService : NotificationListenerService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
             migrateNotificationFilter(0, null)
     }
-
-    private fun scheduleCleanup() =
-        WorkManager
-            .getInstance(this)
-            .enqueue(OneTimeWorkRequestBuilder<CleanupWorker>()
-                .setInitialDelay(prefs.messagesTtl.toLong() + 5, TimeUnit.MINUTES)
-                .build())
 }

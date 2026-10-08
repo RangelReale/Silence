@@ -10,15 +10,12 @@ import android.provider.ContactsContract
 import android.provider.Telephony
 import android.telephony.SmsMessage
 import android.telephony.TelephonyManager
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import me.lucky.silence.AllowNumber
 import me.lucky.silence.AppDatabase
 import me.lucky.silence.Message
 import me.lucky.silence.Preferences
-import java.util.concurrent.TimeUnit
 
 class SmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -74,7 +71,11 @@ class SmsReceiver : BroadcastReceiver() {
                     hasNumber = true
                 }
             }
-            if (hasNumber) scheduleCleanup(ctx, prefs)
+            if (hasNumber) {
+                // the job is postponed by each new number, so drop expired ones here too
+                db.deleteExpired()
+                CleanupWorker.schedule(ctx, prefs.messagesTtl)
+            }
             pendingResult.finish()
         }
 
@@ -109,12 +110,5 @@ class SmsReceiver : BroadcastReceiver() {
             }
             return result
         }
-
-        private fun scheduleCleanup(ctx: Context, prefs: Preferences) =
-            WorkManager
-                .getInstance(ctx)
-                .enqueue(OneTimeWorkRequestBuilder<CleanupWorker>()
-                    .setInitialDelay(prefs.messagesTtl.toLong() + 5, TimeUnit.MINUTES)
-                    .build())
     }
 }
