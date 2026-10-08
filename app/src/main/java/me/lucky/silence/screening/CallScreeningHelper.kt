@@ -2,6 +2,7 @@ package me.lucky.silence.screening
 
 import android.content.Context
 import android.database.Cursor
+import android.database.DatabaseUtils
 import android.net.Uri
 import android.os.Build
 import android.provider.CallLog
@@ -77,7 +78,7 @@ class CallScreeningHelper(private val ctx: Context) {
         var selection = "${Telephony.Sms.ADDRESS} = ?"
         var selectionArgs: Array<String>? = arrayOf(formatedNumber)
         if (isRequireQueryFix()) {
-            selection = selection.replace("?", formatedNumber)
+            selection = selection.replace("?", DatabaseUtils.sqlEscapeString(formatedNumber))
             selectionArgs = null
         }
         try {
@@ -214,7 +215,7 @@ class CallScreeningHelper(private val ctx: Context) {
         var selection = "${Telephony.Sms.ADDRESS} = ?"
         var selectionArgs: Array<String>? = arrayOf(formatedNumber)
         if (isRequireQueryFix()) {
-            selection = selection.replace("?", formatedNumber)
+            selection = selection.replace("?", DatabaseUtils.sqlEscapeString(formatedNumber))
             selectionArgs = null
         }
         try {
