@@ -1,15 +1,21 @@
 package me.lucky.silence.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import me.lucky.silence.ControlReceiver
 import me.lucky.silence.Preferences
 import me.lucky.silence.R
 import me.lucky.silence.ResponseOption
 import me.lucky.silence.Utils
+import me.lucky.silence.ui.common.ClickablePreference
 import me.lucky.silence.ui.common.Preference
 import me.lucky.silence.ui.common.PreferenceList
 import me.lucky.silence.ui.common.Screen
@@ -17,6 +23,9 @@ import me.lucky.silence.ui.common.Screen
 
 @Composable
 fun SettingsScreen(ctx: Context, prefs: Preferences, onBackPressed: () -> Boolean) {
+    val controllerState = remember {
+        mutableStateOf(Utils.isComponentEnabled(ctx, ControlReceiver::class.java))
+    }
     val preferenceList = listOf(
         Preference(
             getValue = { prefs.responseOptions.has(ResponseOption.DISALLOW_CALL) },
@@ -66,11 +75,29 @@ fun SettingsScreen(ctx: Context, prefs: Preferences, onBackPressed: () -> Boolea
             name = R.string.settings_controller,
             description = R.string.settings_controller_description,
             dividerBefore = true,
+            state = controllerState,
         ),
     )
     Screen(title = R.string.settings,
         onBackPressed = onBackPressed,
-        content = { PreferenceList(preferenceList) })
+        content = {
+            PreferenceList(preferenceList)
+            if (controllerState.value) {
+                val token = prefs.controlToken
+                ClickablePreference(
+                    name = stringResource(R.string.settings_controller_token),
+                    description = stringResource(
+                        R.string.settings_controller_token_description,
+                        token,
+                        ControlReceiver.EXTRA_TOKEN,
+                    ),
+                    onModuleClick = {
+                        ctx.getSystemService(ClipboardManager::class.java)
+                            ?.setPrimaryClip(ClipData.newPlainText(null, token))
+                    },
+                )
+            }
+        })
 }
 
 @Preview

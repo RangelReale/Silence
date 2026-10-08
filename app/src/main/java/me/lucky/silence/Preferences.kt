@@ -3,6 +3,7 @@ package me.lucky.silence
 import android.content.Context
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import java.security.SecureRandom
 
 class Preferences(ctx: Context) {
     companion object {
@@ -27,6 +28,8 @@ class Preferences(ctx: Context) {
         const val REGEX_PATTERN_ALLOW = "regex_pattern_allow"
         const val REGEX_PATTERN_BLOCK = "regex_pattern_block"
         const val REGEX_SEP = ";"
+
+        const val CONTROL_TOKEN = "control_token"
 
         const val DEFAULT_REPEATED_COUNT = 3
         const val DEFAULT_REPEATED_MINUTES = 5
@@ -187,6 +190,12 @@ class Preferences(ctx: Context) {
             prefs.getString(REGEX_PATTERN, "")
         )
         set(value) = prefs.edit { putString(REGEX_PATTERN_ALLOW, value) }
+
+    val controlToken: String
+        get() = prefs.getString(CONTROL_TOKEN, null) ?: ByteArray(16)
+            .also { SecureRandom().nextBytes(it) }
+            .joinToString("") { "%02x".format(it) }
+            .also { prefs.edit { putString(CONTROL_TOKEN, it) } }
 
     var regexPatternBlock: String?
         get() = prefs.getString(REGEX_PATTERN_BLOCK, "")

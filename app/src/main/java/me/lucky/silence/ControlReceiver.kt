@@ -3,6 +3,7 @@ package me.lucky.silence
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import java.security.MessageDigest
 
 class ControlReceiver : BroadcastReceiver() {
     companion object {
@@ -19,10 +20,11 @@ class ControlReceiver : BroadcastReceiver() {
         private const val SET_SIM_1_BLOCK_OFF = "$PREFIX.SET_SIM_1_BLOCK_OFF"
         private const val SET_SIM_2_BLOCK_ON = "$PREFIX.SET_SIM_2_BLOCK_ON"
         private const val SET_SIM_2_BLOCK_OFF = "$PREFIX.SET_SIM_2_BLOCK_OFF"
+        const val EXTRA_TOKEN = "token"
     }
 
     override fun onReceive(context: Context?, intent: Intent?) {
-        if (context == null) return
+        if (context == null || !hasValidToken(context, intent)) return
         when (intent?.action) {
             SET_ON -> setGlobalState(context, true)
             SET_OFF -> setGlobalState(context, false)
@@ -37,6 +39,15 @@ class ControlReceiver : BroadcastReceiver() {
             SET_SIM_2_BLOCK_ON -> setSimBlockState(context, Sim.SIM_2, true)
             SET_SIM_2_BLOCK_OFF -> setSimBlockState(context, Sim.SIM_2, false)
         }
+    }
+
+    // the receiver is exported, so the token is what keeps other apps out
+    private fun hasValidToken(ctx: Context, intent: Intent?): Boolean {
+        val token = intent?.getStringExtra(EXTRA_TOKEN) ?: return false
+        return MessageDigest.isEqual(
+            token.toByteArray(),
+            Preferences(ctx).controlToken.toByteArray(),
+        )
     }
 
     private fun setGlobalState(ctx: Context, state: Boolean) {
