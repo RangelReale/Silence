@@ -40,8 +40,7 @@ class NotificationListenerService : NotificationListenerService() {
         if (sbn == null
             || !prefs.messages.has(Message.NOTIFICATION)
             || isCallNotification(sbn)) return
-        var hasNumber = false
-        for (number in phoneNumberUtil
+        val numbers = phoneNumberUtil
             .findNumbers(
                 sbn.notification.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
                     ?: return,
@@ -51,24 +50,26 @@ class NotificationListenerService : NotificationListenerService() {
             .map { it.number() }
             .filter { phoneNumberUtil.getNumberType(it) == PhoneNumberUtil.PhoneNumberType.MOBILE }
             .map { AllowNumber.new(it, prefs.messagesTtl) }
-        ) {
+            .toList()
+        // the dialer lookup is a call to the system, so it waits until there is a number
+        if (numbers.isEmpty() || isDialerNotification(sbn)) return
+        for (number in numbers) {
             try { db.insert(number) } catch (_: SQLiteConstraintException) { db.update(number) }
-            hasNumber = true
         }
-        if (hasNumber) {
-            // the job is postponed by each new number, so drop expired ones here too
-            db.deleteExpired()
-            CleanupWorker.schedule(this, prefs.messagesTtl)
-        }
+        // the job is postponed by each new number, so drop expired ones here too
+        db.deleteExpired()
+        CleanupWorker.schedule(this, prefs.messagesTtl)
     }
 
     // a blocked or missed call shows its own number, which would allow the next call from it
     private fun isCallNotification(sbn: StatusBarNotification) =
         sbn.packageName == packageName ||
             sbn.packageName == TELECOM_PACKAGE ||
-            sbn.packageName == getSystemService(TelecomManager::class.java)?.defaultDialerPackage ||
             sbn.notification.category == Notification.CATEGORY_CALL ||
             sbn.notification.category == Notification.CATEGORY_MISSED_CALL
+
+    private fun isDialerNotification(sbn: StatusBarNotification) =
+        sbn.packageName == getSystemService(TelecomManager::class.java)?.defaultDialerPackage
 
     override fun onListenerConnected() {
         super.onListenerConnected()

@@ -34,7 +34,10 @@ class SmsReceiver : BroadcastReceiver() {
         private val phoneNumberUtil by lazy { PhoneNumberUtil.getInstance() }
         private val telephonyManager by lazy { ctx.getSystemService(TelephonyManager::class.java) }
 
-        override fun run() {
+        // an unfinished broadcast keeps the device awake until it times out
+        override fun run() = try { process() } finally { pendingResult.finish() }
+
+        private fun process() {
             val countryCode by lazy {
                 telephonyManager?.networkCountryIso?.uppercase()
             }
@@ -76,7 +79,6 @@ class SmsReceiver : BroadcastReceiver() {
                 db.deleteExpired()
                 CleanupWorker.schedule(ctx, prefs.messagesTtl)
             }
-            pendingResult.finish()
         }
 
         // an unknown caller could otherwise text their own number and then call
