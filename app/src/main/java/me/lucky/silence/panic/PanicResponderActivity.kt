@@ -11,14 +11,16 @@ import me.lucky.silence.Utils
 class PanicResponderActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (!Panic.isTriggerIntent(intent)) {
+        // any app can send the trigger, so only the app the user connected may act on it
+        if (!Panic.isTriggerIntent(intent) ||
+            !PanicResponder.receivedTriggerFromConnectedApp(this)
+        ) {
             finishAndRemoveTask()
             return
         }
         Preferences(this).isEnabled = false
         Utils.updateMessagesEnabled(this)
-        if (PanicResponder.receivedTriggerFromConnectedApp(this))
-            AppDatabase.getInstance(this).allowNumberDao().deleteAll()
+        AppDatabase.getInstance(this).allowNumberDao().deleteAll()
         finishAndRemoveTask()
     }
 }
