@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteConstraintException
 import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.telecom.TelecomManager
 import android.telephony.TelephonyManager
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -17,6 +18,10 @@ import me.lucky.silence.Preferences
 import java.util.concurrent.TimeUnit
 
 class NotificationListenerService : NotificationListenerService() {
+    companion object {
+        private const val TELECOM_PACKAGE = "com.android.server.telecom"
+    }
+
     private val phoneNumberUtil = PhoneNumberUtil.getInstance()
     private lateinit var prefs: Preferences
     private lateinit var db: AllowNumberDao
@@ -36,7 +41,8 @@ class NotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
         if (sbn == null
-            || !prefs.messages.has(Message.NOTIFICATION)) return
+            || !prefs.messages.has(Message.NOTIFICATION)
+            || isCallNotification(sbn)) return
         var hasNumber = false
         for (number in phoneNumberUtil
             .findNumbers(
@@ -54,6 +60,14 @@ class NotificationListenerService : NotificationListenerService() {
         }
         if (hasNumber) scheduleCleanup()
     }
+
+    // a blocked or missed call shows its own number, which would allow the next call from it
+    private fun isCallNotification(sbn: StatusBarNotification) =
+        sbn.packageName == packageName ||
+            sbn.packageName == TELECOM_PACKAGE ||
+            sbn.packageName == getSystemService(TelecomManager::class.java)?.defaultDialerPackage ||
+            sbn.notification.category == Notification.CATEGORY_CALL ||
+            sbn.notification.category == Notification.CATEGORY_MISSED_CALL
 
     override fun onListenerConnected() {
         super.onListenerConnected()

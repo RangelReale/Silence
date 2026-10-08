@@ -3,12 +3,16 @@ package me.lucky.silence.text
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.database.Cursor
 import android.database.sqlite.SQLiteConstraintException
+import android.net.Uri
+import android.provider.ContactsContract
 import android.provider.Telephony
 import android.telephony.SmsMessage
 import android.telephony.TelephonyManager
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import me.lucky.silence.AllowNumber
 import me.lucky.silence.AppDatabase
@@ -47,7 +51,7 @@ class SmsReceiver : BroadcastReceiver() {
                     msg.isMWISetMessage ||
                     msg.isMwiDontStore ||
                     msg.isReplace ||
-                    msg.originatingAddress == null ||
+                    !isTrustedSender(msg.originatingAddress, countryCode) ||
                     (
                         msg.messageClass != SmsMessage.MessageClass.CLASS_1
                         && msg.messageClass != SmsMessage.MessageClass.UNKNOWN
@@ -72,6 +76,38 @@ class SmsReceiver : BroadcastReceiver() {
             }
             if (hasNumber) scheduleCleanup(ctx, prefs)
             pendingResult.finish()
+        }
+
+        // an unknown caller could otherwise text their own number and then call
+        private fun isTrustedSender(address: String?, countryCode: String?): Boolean {
+            address ?: return false
+            val isPhoneNumber = try {
+                phoneNumberUtil.isValidNumber(phoneNumberUtil.parse(address, countryCode))
+            } catch (_: NumberParseException) { false }
+            // sender ids and short codes belong to services
+            return !isPhoneNumber || isContact(address)
+        }
+
+        private fun isContact(address: String): Boolean {
+            val cursor: Cursor?
+            try {
+                cursor = ctx.contentResolver.query(
+                    Uri.withAppendedPath(
+                        ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                        Uri.encode(address),
+                    ),
+                    arrayOf(ContactsContract.PhoneLookup._ID),
+                    null,
+                    null,
+                    null,
+                )
+            } catch (_: SecurityException) { return false }
+            var result = false
+            cursor?.apply {
+                if (moveToFirst()) result = true
+                close()
+            }
+            return result
         }
 
         private fun scheduleCleanup(ctx: Context, prefs: Preferences) =
