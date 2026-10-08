@@ -59,6 +59,10 @@ class CallScreeningService : CallScreeningService() {
         } else if (callDetails.callDirection != Call.Details.DIRECTION_INCOMING) {
             respondAllow(callDetails)
             return
+        } else if (isEmergencyNumber(callDetails)) {
+            // caller id of an incoming call can be spoofed, so allow it without disabling
+            respondAllow(callDetails)
+            return
         } else if (prefs.isBlockEnabled || checkSim(prefs.simBlock)) {
             respondNotAllow(callDetails)
             return
@@ -128,12 +132,17 @@ class CallScreeningService : CallScreeningService() {
             callDetails.callerNumberVerificationStatus == Connection.VERIFICATION_STATUS_PASSED
         else false
 
-    private fun isEmergency(callDetails: Call.Details): Boolean {
-        val rv = callDetails.hasProperty(Call.Details.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
+    private fun isEmergency(callDetails: Call.Details) =
+        callDetails.hasProperty(Call.Details.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
             callDetails.hasProperty(Call.Details.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL) ||
-            telephonyManager
-                ?.isEmergencyNumber(callDetails.getRawNumber() ?: return false) == true
-        return rv
+            (
+                callDetails.callDirection != Call.Details.DIRECTION_INCOMING &&
+                    isEmergencyNumber(callDetails)
+            )
+
+    private fun isEmergencyNumber(callDetails: Call.Details): Boolean {
+        val number = callDetails.getRawNumber() ?: return false
+        return telephonyManager?.isEmergencyNumber(number) == true
     }
 
     private fun checkSim(sim: FlagSet<Sim>): Boolean {
