@@ -1,6 +1,7 @@
 package me.lucky.silence.ui.common
 
 object Route {
+    const val BLOCKED_CALLS = "blocked_calls"
     const val CONTACTED = "contacted"
     const val EXTRA = "extra"
     const val GROUPS = "groups"

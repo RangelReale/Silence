@@ -88,6 +88,7 @@ fun MainScreen(
     onNavigateToExtra: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToRegex: () -> Unit,
+    onNavigateToBlockedCalls: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val blockEnabledToast = stringResource(R.string.block_enabled)
@@ -178,6 +179,12 @@ fun MainScreen(
                     contentDescription = stringResource(R.string.block_main)
                 )
             }
+            IconButton(onClick = onNavigateToBlockedCalls) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_baseline_history_24),
+                    contentDescription = stringResource(R.string.notification_channel)
+                )
+            }
             IconButton(onClick = onNavigateToSettings) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_baseline_settings_24),
@@ -225,5 +232,6 @@ fun ModuleScreenPreview() {
         onNavigateToExtra = { navController.navigate(Route.EXTRA) },
         onNavigateToSettings = { navController.navigate(Route.SETTINGS) },
         onNavigateToRegex = { navController.navigate(Route.REGEX) },
+        onNavigateToBlockedCalls = { navController.navigate(Route.BLOCKED_CALLS) },
     )
 }

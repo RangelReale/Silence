@@ -55,6 +55,7 @@ fun App(ctx: Context, navController: NavHostController) {
                 onNavigateToExtra = { navController.navigate(Route.EXTRA) },
                 onNavigateToSettings = { navController.navigate(Route.SETTINGS) },
                 onNavigateToRegex = { navController.navigate(Route.REGEX) },
+                onNavigateToBlockedCalls = { navController.navigate(Route.BLOCKED_CALLS) },
             )
         }
         composable(Route.CONTACTED) { ContactedScreen(prefs) { navController.popBackStack() } }
@@ -65,5 +66,8 @@ fun App(ctx: Context, navController: NavHostController) {
         composable(Route.EXTRA) { ExtraScreen(prefs) { navController.popBackStack() } }
         composable(Route.SETTINGS) { SettingsScreen(ctx, prefs) { navController.popBackStack() } }
         composable(Route.REGEX) { RegexScreen(prefs) { navController.popBackStack() } }
+        composable(Route.BLOCKED_CALLS) {
+            BlockedCallsScreen(ctx) { navController.popBackStack() }
+        }
     }
 }
