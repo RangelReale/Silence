@@ -11,6 +11,8 @@ import androidx.core.text.isDigitsOnly
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.Phonenumber
+import me.lucky.silence.AppDatabase
+import me.lucky.silence.BlockedCall
 import me.lucky.silence.Extra
 import me.lucky.silence.FlagSet
 import me.lucky.silence.NotificationManager
@@ -113,18 +115,25 @@ class CallScreeningService : CallScreeningService() {
             .setSkipCallLog(responseOptions.has(ResponseOption.SKIP_CALL_LOG) && disallowCall)
             .setSkipNotification(!isNotify && disallowCall)
             .build()
-        if (isNotify && disallowCall) {
-            var sim: Sim? = null
-            if (Utils.hasActiveMultiSim(this)) {
-                sim = when {
-                    checkSimSlot(0) -> Sim.SIM_1
-                    checkSimSlot(1) -> Sim.SIM_2
-                    else -> null
-                }
+        var sim: Sim? = null
+        if (Utils.hasActiveMultiSim(this)) {
+            sim = when {
+                checkSimSlot(0) -> Sim.SIM_1
+                checkSimSlot(1) -> Sim.SIM_2
+                else -> null
             }
-            notificationManager.notifyBlockedCall(tel, sim)
         }
+        if (isNotify && disallowCall) notificationManager.notifyBlockedCall(tel, sim)
+        logBlockedCall(tel, sim)
         respondToCall(callDetails, response)
+    }
+
+    private fun logBlockedCall(tel: String?, sim: Sim?) {
+        try {
+            val dao = AppDatabase.getInstance(this).blockedCallDao()
+            dao.insert(BlockedCall.new(tel, sim))
+            dao.deleteExpired()
+        } catch (_: Exception) {}
     }
 
     private fun isStirVerified(callDetails: Call.Details) =

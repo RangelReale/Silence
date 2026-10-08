@@ -20,12 +20,16 @@ import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.Phonenumber
 
 @Database(
-    entities = [AllowNumber::class],
-    version = 3,
-    autoMigrations = [AutoMigration(from = 1, to = 2, spec = AutoMigration1to2::class)],
+    entities = [AllowNumber::class, BlockedCall::class],
+    version = 4,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2, spec = AutoMigration1to2::class),
+        AutoMigration(from = 3, to = 4),
+    ],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun allowNumberDao(): AllowNumberDao
+    abstract fun blockedCallDao(): BlockedCallDao
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
@@ -103,6 +107,51 @@ data class AllowNumber(
                     .getInstance()
                     .format(phoneNumber, PhoneNumberUtil.PhoneNumberFormat.E164),
                 Utils.currentTimeSeconds() + minutes * 60L,
+            )
+        }
+    }
+}
+
+@Dao
+interface BlockedCallDao {
+    companion object {
+        const val KEEP_DURATION = 30 * 24 * 60 * 60L
+        const val SELECT_LIMIT = 500
+    }
+
+    @Insert
+    fun insert(obj: BlockedCall)
+
+    @Query("SELECT * FROM blocked_call ORDER BY ts DESC, uid DESC LIMIT :limit")
+    fun selectRecent(limit: Int): List<BlockedCall>
+
+    @Query("DELETE FROM blocked_call WHERE ts < :ts")
+    fun deleteBefore(ts: Long)
+
+    @Query("DELETE FROM blocked_call")
+    fun deleteAll()
+
+    fun selectRecent() = selectRecent(SELECT_LIMIT)
+    fun deleteExpired() = deleteBefore(Utils.currentTimeSeconds() - KEEP_DURATION)
+}
+
+@Entity(
+    indices = [Index(value = ["ts"])],
+    tableName = "blocked_call",
+)
+data class BlockedCall(
+    @PrimaryKey(autoGenerate = true) val uid: Int,
+    @ColumnInfo(name = "phone_number") val phoneNumber: String?,
+    @ColumnInfo(name = "ts") val ts: Long,
+    @ColumnInfo(name = "sim") val sim: String?,
+) {
+    companion object {
+        fun new(phoneNumber: String?, sim: Sim?): BlockedCall {
+            return BlockedCall(
+                0,
+                phoneNumber?.ifBlank { null },
+                Utils.currentTimeSeconds(),
+                sim?.name?.replace('_', ' '),
             )
         }
     }
